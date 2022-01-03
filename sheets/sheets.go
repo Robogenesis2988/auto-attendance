@@ -98,7 +98,7 @@ func GetSheetData(srv *sheets.Service, sheetId string, valueRange string) ([][]s
 	}
 
 	if len(resp.Values) == 0 {
-		log.Println("No data found.")
+		// log.Println("No data found.")
 		return nil, nil
 	} else {
 		var data [][]string
