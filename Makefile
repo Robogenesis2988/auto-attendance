@@ -1,3 +1,4 @@
+#Testing123
 BIN_NAME=auto-attendance
 LD_FLAGS="-s -w"
 
