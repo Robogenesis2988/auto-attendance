@@ -2,6 +2,7 @@ package serial
 
 import (
 	"log"
+	"runtime"
 	"strings"
 
 	"go.bug.st/serial"
@@ -33,35 +34,36 @@ func GetUSBPorts() []string {
 func Open(portName string, baud int) serial.Port {
 	mode := &serial.Mode{BaudRate: baud}
 	port, err := serial.Open(portName, mode)
-	must(err, "there was a problem opening port "+portName)
+	var help string
+	if runtime.GOOS == "linux" {
+		help = "try running: sudo usermod -a -G dialout $USER\n"
+	}
+	must(err, "there was a problem opening port "+portName+"\n"+help)
 	return port
 }
 
 func ListenForData(port *serial.Port, c chan string) {
-	log.Println("Listening for data on the serial port")
-	for { // main loop
-		buff := make([]byte, 10)
-		for {
-			n, err := (*port).Read(buff)
-			if err != nil {
-				log.Fatal(err)
-				break
-			}
-			if n == 0 {
-				// log.Println("\nEOF")
-				break
-			}
-			// fmt.Printf("Data:%v", string(buff[:n]))
-			// If we receive a newline stop reading
-			if strings.Contains(string(buff[:n]), "\n") {
-				break
-			}
+	buff := make([]byte, 10)
+	for {
+		n, err := (*port).Read(buff)
+		if err != nil {
+			log.Fatal(err)
+			break
 		}
-		value := strings.TrimSpace(string(buff))
-		// log.Printf("value: hi%vhi\n", value)
-		c <- value
-
+		if n == 0 {
+			// log.Println("\nEOF")
+			break
+		}
+		// fmt.Printf("Data:%v", string(buff[:n]))
+		// If we receive a newline stop reading
+		if strings.Contains(string(buff[:n]), "\n") {
+			break
+		}
 	}
+	value := strings.TrimSpace(string(buff))
+	// log.Printf("value: hi%vhi\n", value)
+	c <- value
+	close(c)
 }
 
 func should(err error, msg string) {

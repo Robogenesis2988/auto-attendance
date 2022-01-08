@@ -10,6 +10,12 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
+type GoogleSheet struct {
+	Service    *sheets.Service
+	Id         string
+	ValueRange string
+}
+
 // Retrieve a token, saves the token, then returns the generated client.
 // func getClient(config *oauth2.Config) *http.Client {
 // 	// The file token.json stores the user's access and refresh tokens, and is
@@ -87,12 +93,12 @@ func Auth(creds []byte) *sheets.Service {
 	return srv
 }
 
-func GetSheetData(srv *sheets.Service, sheetId string, valueRange string) ([][]string, error) {
+func GetSheetData(s *GoogleSheet) ([][]string, error) {
 	// Prints the names and majors of students in a sample spreadsheet:
 	// https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-	spreadsheetId := sheetId
-	readRange := valueRange
-	resp, err := srv.Spreadsheets.Values.Get(spreadsheetId, readRange).Do()
+	spreadsheetId := s.Id
+	readRange := s.ValueRange
+	resp, err := s.Service.Spreadsheets.Values.Get(spreadsheetId, readRange).Do()
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve data from sheet: %v", err)
 	}
@@ -119,8 +125,8 @@ func GetSheetData(srv *sheets.Service, sheetId string, valueRange string) ([][]s
 	}
 }
 
-func AppendSheet(srv *sheets.Service, sheetId string, headerRange string, values [][]interface{}) (res *sheets.AppendValuesResponse, err error) {
+func AppendSheet(s *GoogleSheet, values [][]interface{}) (res *sheets.AppendValuesResponse, err error) {
 	vals := &sheets.ValueRange{MajorDimension: `ROWS`, Values: values} //, Range: headerRange
-	resp, err := srv.Spreadsheets.Values.Append(sheetId, headerRange, vals).ValueInputOption("USER_ENTERED").Do()
+	resp, err := s.Service.Spreadsheets.Values.Append(s.Id, s.ValueRange, vals).ValueInputOption("USER_ENTERED").Do()
 	return resp, err
 }

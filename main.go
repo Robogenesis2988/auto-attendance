@@ -9,6 +9,7 @@ import (
 
 	"github.com/OutboundSpade/auto-attendance/serial"
 	"github.com/OutboundSpade/auto-attendance/sheets"
+	"github.com/OutboundSpade/auto-attendance/users"
 	"github.com/joho/godotenv"
 )
 
@@ -17,9 +18,14 @@ var creds []byte
 
 func main() {
 	// log.SetFlags(log.Lshortfile)
+	// scanSound, _ := sound.InitSound("scan.wav")
 
 	var portArg string
+	var verify bool
+	var register bool
 	flag.StringVar(&portArg, "port", "", "The name/path of the port")
+	flag.BoolVar(&verify, "verify", false, "Used to find out which person a tag belongs to")
+	flag.BoolVar(&register, "register", false, "Used to register a tag with a name")
 	flag.Parse()
 	if portArg == "" {
 		fmt.Println("-port flag required!")
@@ -41,31 +47,37 @@ func main() {
 	if sheetId == "" {
 		log.Fatal("the environment variable 'SHEET_ID' must be set")
 	}
+
 	service := sheets.Auth(creds)
 	log.Println("Successfully Authenticated via Google!")
+	usersSheet := sheets.GoogleSheet{
+		Service:    service,
+		Id:         sheetId,
+		ValueRange: "users!A2:B",
+	}
+	loginSheet := sheets.GoogleSheet{
+		Service:    service,
+		Id:         sheetId,
+		ValueRange: "Form Responses 1!A2:B",
+	}
 
 	port := serial.Open(portArg, 9600)
-	serialData := make(chan string)
-	go serial.ListenForData(&port, serialData)
+	log.Printf("Listening for data on port %s", portArg)
+
+	// sound.PlayStartupSound()
 
 	for {
-		data := <-serialData
-		log.Printf("Recieved SerialData: %v", data)
+		serialData := make(chan string)
+		go serial.ListenForData(&port, serialData)
+		uid := <-serialData //Listen for serial data
+		// sound.PlayScanSound()
+		log.Printf("Recieved SerialData: %v", uid)
+		err := users.SignIn(uid, &usersSheet, &loginSheet)
+		if err != nil {
+			log.Print(err)
+		}
 	}
 
-	data, err := sheets.GetSheetData(service, sheetId, "Form Responses 1!A2:B")
-	must(err, "there was a problem retrieving sheet data - CUSTOM")
-	log.Println("Data:")
-	for _, row := range data {
-		log.Printf("%v", row)
-	}
-
-	// for i := 1; i < 20; i++ {
-	// 	data := []interface{}{i, i + 1}
-	// 	log.Printf("Appending data: %v, %v", data...)
-	// 	_, err = sheets.AppendSheet(service, sheetId, "Form Responses 1!A1:B1", [][]interface{}{data})
-	// 	must(err, "problem appending")
-	// }
 }
 
 func loadEnv() {
